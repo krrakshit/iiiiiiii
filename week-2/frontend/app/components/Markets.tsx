@@ -1,15 +1,18 @@
 "use client";
-
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Ticker } from "../utils/types";
 import { getTickers } from "../utils/httpClient";
 import { useRouter } from "next/navigation";
 
 export const Markets = () => {
-  const [tickers, setTickers] = useState<Ticker[]>();
+  const [tickers, setTickers] = useState<Ticker[]>([]);
 
   useEffect(() => {
-    getTickers().then((m) => setTickers(m));
+    getTickers().then((m) => {
+      console.log("ticker response ", m);
+      setTickers(Array.isArray(m) ? m : []);
+    });
   }, []);
 
   return (
@@ -18,7 +21,7 @@ export const Markets = () => {
         <div className="flex flex-col w-full rounded-lg bg-baseBackgroundL1 px-5 py-3">
           <table className="w-full table-auto">
             <MarketHeader />
-            {tickers?.map((m) => <MarketRow market={m} />)}
+            {tickers?.map((m) => <MarketRow key={m.symbol} market={m} />)}
           </table>
         </div>
       </div>
@@ -38,7 +41,7 @@ function MarketRow({ market }: { market: Ticker }) {
               style={{ width: "40px", height: "40px" }}
             >
               <div className="relative">
-                <img
+                <Image
                   alt={market.symbol}
                   src={"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTVvBqZC_Q1TSYObZaMvK0DRFeHZDUtVMh08Q&s"}
                   loading="lazy"
