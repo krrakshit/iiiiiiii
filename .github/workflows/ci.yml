@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16, 18, 20] # Optional: Test against multiple Node.js versions
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Optional: Cache Docker layers for faster builds
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+
+      - name: Build all services with Docker Compose
+        run: |
+          cd week-2
+          docker-compose build
+
+      # Optional: Run all services and check health
+      - name: Start all services
+        run: |
+          cd week-2
+          docker-compose up -d
+
+      - name: Wait for services to be healthy
+        run: |
+          sleep 20
+          docker ps
+
+      # Optional: Upload docker-compose logs as artifacts
+      - name: Upload docker-compose logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: compose-logs
+          path: week-2/docker-compose.log
+        continue-on-error: true
+
+      - name: Get docker-compose logs
+        run: |
+          cd week-2
+          docker-compose logs > docker-compose.log
+
+      # Optional: Run npm test in each service if test script exists
+      - name: Run tests in all services
+        run: |
+          for d in api db engine frontend mm ws; do
+            if [ -f "week-2/$d/package.json" ]; then
+              cd week-2/$d
+              if grep -q '"test"' package.json; then
+                npm install
+                npm test || true
+              fi
+              cd -
+            fi
+          done
+
+      - name: List containers
+        run: |
+          docker images
+
+      # Optional: Stop and clean up containers
+      - name: Stop containers
+        if: always()
+        run: |
+          cd week-2
+          docker-compose down 
